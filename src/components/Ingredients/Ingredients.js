@@ -6,17 +6,20 @@ import Search from "./Search";
 
 function Ingredients() {
   const [userIngredients, setUserIngredients] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     console.log("rendering ingredients", userIngredients);
   }, [userIngredients]);
 
   const addIngredientHandler = ingredient => {
+    setIsLoading(true);
     fetch("https://react-hooks-update-9015a.firebaseio.com/ingredients.json", {
       method: "POST",
       body: JSON.stringify(ingredient),
       headers: { "Content-Type": "application/json" }
     }).then(response => {
+      setIsLoading(false);
       return response.json().then(({ name }) => {
         setUserIngredients(prevIngredients => [
           ...prevIngredients,
@@ -32,12 +35,14 @@ function Ingredients() {
   }, []);
 
   const onRemoveIngredient = e => {
+    setIsLoading(true);
     fetch(
       `https://react-hooks-update-9015a.firebaseio.com/ingredients/${e}.json`,
       {
         method: "DELETE"
       }
     ).then(() => {
+      setIsLoading(false);
       setUserIngredients(
         userIngredients.filter(ingredient => ingredient.id !== e)
       );
@@ -45,7 +50,10 @@ function Ingredients() {
   };
   return (
     <div className="App">
-      <IngredientForm onAddIngredient={addIngredientHandler} />
+      <IngredientForm
+        onAddIngredient={addIngredientHandler}
+        loading={isLoading}
+      />
 
       <section>
         <Search onLoadIngredients={filteredIngredientsHandler} />
