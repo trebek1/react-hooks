@@ -32,9 +32,16 @@ function Ingredients() {
   }, []);
 
   const onRemoveIngredient = e => {
-    setUserIngredients(
-      userIngredients.filter(ingredient => ingredient.id !== e)
-    );
+    fetch(
+      `https://react-hooks-update-9015a.firebaseio.com/ingredients/${e}.json`,
+      {
+        method: "DELETE"
+      }
+    ).then(() => {
+      setUserIngredients(
+        userIngredients.filter(ingredient => ingredient.id !== e)
+      );
+    });
   };
   return (
     <div className="App">
