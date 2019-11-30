@@ -4,6 +4,7 @@ import IngredientForm from "./IngredientForm";
 import IngredientList from "./IngredientList";
 import ErrorModal from "../UI/ErrorModal";
 import Search from "./Search";
+import useHttp from "../../hooks/http";
 
 const ingredientReducer = (currentIngredients, action) => {
   switch (action.type) {
@@ -18,81 +19,59 @@ const ingredientReducer = (currentIngredients, action) => {
   }
 };
 
-const httpReducer = (prevHttpState, action) => {
-  switch (action.type) {
-    case "SEND":
-      return {
-        loading: true,
-        error: null
-      };
-
-    case "RESPONSE":
-      return {
-        ...prevHttpState,
-        loading: false
-      };
-    case "ERROR":
-      return {
-        loading: false,
-        error: action.errorMessage
-      };
-    case "CLEAR":
-      return {
-        ...prevHttpState,
-        error: null
-      };
-    default:
-      throw new Error("Should not be reaached");
-  }
-};
-
 function Ingredients() {
   const [userIngredients, dispatch] = useReducer(ingredientReducer, []);
-  const [httpState, dispatchHttp] = useReducer(httpReducer, {
-    loading: false,
-    error: null
-  });
+  const { isLoading, error, data, sendRequest, extra, identifier } = useHttp();
 
   useEffect(() => {
-    console.log("rendering ingredients", userIngredients);
-  }, [userIngredients]);
-
-  const addIngredientHandler = useCallback(ingredient => {
-    dispatchHttp({ type: "SEND" });
-    fetch("https://react-hooks-update-9015a.firebaseio.com/ingredients.json", {
-      method: "POST",
-      body: JSON.stringify(ingredient),
-      headers: { "Content-Type": "application/json" }
-    }).then(response => {
-      dispatchHttp({ type: "RESPONSE" });
-      return response.json().then(({ name }) => {
-        dispatch({ type: "ADD", ingredient: { id: name, ...ingredient } });
+    if (!isLoading && !error && identifier === "REMOVE_INGREDIENT") {
+      console.log("this is extra ", extra);
+      dispatch({ type: "DELETE", id: extra });
+    } else if (!isLoading && data && identifier === "ADD_INGREDIENT") {
+      console.log("what is data ", data, extra);
+      dispatch({
+        type: "ADD",
+        ingredient: {
+          id: data.name,
+          ...extra
+        }
       });
-    });
-  }, []);
+    }
+  }, [data, extra, identifier, isLoading, error]);
+
+  const addIngredientHandler = useCallback(
+    ingredient => {
+      sendRequest(
+        "https://react-hooks-update-9015a.firebaseio.com/ingredients.json",
+        "POST",
+        JSON.stringify(ingredient),
+        ingredient,
+        "ADD_INGREDIENT"
+      );
+    },
+    [sendRequest]
+  );
 
   // caches function so that it survives re-rendering functions
   const filteredIngredientsHandler = useCallback(filteredIngredients => {
     dispatch({ type: "SET", ingredients: filteredIngredients });
   }, []);
 
-  const onRemoveIngredient = useCallback(e => {
-    fetch(
-      `https://react-hooks-update-9015a.firebaseio.com/ingredients/${e}.json`,
-      {
-        method: "DELETE"
-      }
-    )
-      .then(() => {
-        dispatch({ type: "DELETE", id: e });
-      })
-      .catch(e => {
-        dispatchHttp({ type: "ERROR", errorMessage: e.message });
-      });
-  }, []);
+  const onRemoveIngredient = useCallback(
+    e => {
+      sendRequest(
+        `https://react-hooks-update-9015a.firebaseio.com/ingredients/${e}.json`,
+        "DELETE",
+        null,
+        e,
+        "REMOVE_INGREDIENT"
+      );
+    },
+    [sendRequest]
+  );
 
   const clearError = useCallback(() => {
-    dispatchHttp({ type: "CLEAR" });
+    // dispatchHttp({ type: "CLEAR" });
   }, []);
 
   const ingredientList = useMemo(() => {
@@ -106,12 +85,10 @@ function Ingredients() {
 
   return (
     <div className="App">
-      {httpState.error && (
-        <ErrorModal onClose={clearError}>{httpState.error}</ErrorModal>
-      )}
+      {error && <ErrorModal onClose={clearError}>{error}</ErrorModal>}
       <IngredientForm
         onAddIngredient={addIngredientHandler}
-        loading={httpState.isLoading}
+        loading={isLoading}
       />
       <section>
         <Search onLoadIngredients={filteredIngredientsHandler} />
